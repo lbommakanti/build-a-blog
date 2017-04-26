@@ -31,7 +31,7 @@ def render_post(response, post):
 
 class MainPage(BlogHandler):
   def get(self):
-      self.write('MY BLOG')
+      self.write('MYBLOG')
 
 ##### blog stuff
 
@@ -51,18 +51,32 @@ class Post(db.Model):
 class BlogFront(BlogHandler):
     def get(self):
         posts = db.GqlQuery("select * from Post order by created desc limit 10")
-        self.render('front.html', posts = posts)
+        t = jinja_env.get_template("front.html")
+        response = t.render(posts=posts)
+        self.response.out.write(response)
+
+        #self.render('front.html', posts = posts)
 
 class PostPage(BlogHandler):
-    def get(self, post_id):
-        key = db.Key.from_path('Post', int(post_id), parent=blog_key())
+    def get(self, id):
+        #post = Post.get_by_id(int(id))
+
+        key = db.Key.from_path('Post', int(id), parent=blog_key())
         post = db.get(key)
 
-        if not post:
-            self.error(404)
-            return
+        if post:
+            #self.render("permalink.html", post = post)
+            t = jinja_env.get_template("permalink.html")
+            response = t.render(post=post)
+        else:
+            #error = "there is no post with id %s" % id
+            error = "The resource could not be found."
+            t = jinja_env.get_template("404.html")
+            response = t.render(error=error)
+             #self.response.error.(404)
 
-        self.render("permalink.html", post = post)
+        self.response.out.write(response)
+
 
 class NewPost(BlogHandler):
     def get(self):
@@ -80,11 +94,9 @@ class NewPost(BlogHandler):
             error = "subject and content, please!"
             self.render("newpost.html", subject=subject, content=content, error=error)
 
-
-
 app = webapp2.WSGIApplication([('/', MainPage),
-                               ('/blog/?', BlogFront),
-                               ('/blog/([0-9]+)', PostPage),
+                               ('/blog', BlogFront),
+                               webapp2.Route('/blog/<id:\d+>', PostPage),
                                ('/blog/newpost', NewPost),
                                ],
                               debug=True)
